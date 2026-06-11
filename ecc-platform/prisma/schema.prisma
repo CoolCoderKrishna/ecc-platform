@@ -1,0 +1,337 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+// ─── Auth Models ───────────────────────────────────────────────
+
+model User {
+  id            String    @id @default(cuid())
+  email         String    @unique
+  name          String?
+  password      String?
+  avatar        String?
+  emailVerified DateTime?
+  role          Role      @default(STUDENT)
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  academicYear   String?
+  skills         String[] @default([])
+  interests      String[] @default([])
+  careerGoals    String[] @default([])
+  preferredTechs String[] @default([])
+  location       String?
+  bio            String?
+
+  emailNotifications  Boolean @default(true)
+  pushNotifications   Boolean @default(true)
+  telegramBotEnabled  Boolean @default(false)
+  telegramChatId      String?
+  smsEnabled          Boolean @default(false)
+  phoneNumber         String?
+  whatsappEnabled     Boolean @default(false)
+  whatsappNumber      String?
+  notificationFreq    NotificationFreq @default(INSTANT)
+
+  sessions              Session[]
+  accounts              Account[]
+  opportunities         SavedOpportunity[]
+  notifications         Notification[]
+  certifications        Certification[]
+  achievements          Achievement[]
+  portfolioItems        PortfolioItem[]
+  goals                 Goal[]
+  notificationPrefs     NotificationPreference?
+  viewedOpportunities   ViewedOpportunity[]
+
+  @@index([role])
+  @@index([emailNotifications])
+  @@index([skills], type: Gin)
+}
+
+model Account {
+  id                String  @id @default(cuid())
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String?
+  access_token      String?
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String?
+  session_state     String?
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  @@unique([provider, providerAccountId])
+}
+
+model Session {
+  id           String   @id @default(cuid())
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model VerificationToken {
+  identifier String
+  token      String   @unique
+  expires    DateTime
+  @@unique([identifier, token])
+}
+
+// ─── Opportunity Models ────────────────────────────────────────
+
+model Opportunity {
+  id              String          @id @default(cuid())
+  title           String
+  description     String
+  source          String
+  sourceUrl       String?
+  category        Category
+  domain          String?
+  skillsRequired  String[]        @default([])
+  location        String?
+  isRemote        Boolean         @default(false)
+  eligibility     String?
+  stipend         String?
+  deadline        DateTime?
+  difficulty      Difficulty      @default(MEDIUM)
+  company         String?
+  imageUrl        String?
+  contentHash     String          @unique
+  isActive        Boolean         @default(true)
+  publishedAt     DateTime?
+  scrapedAt       DateTime        @default(now())
+  createdAt       DateTime        @default(now())
+  updatedAt       DateTime        @updatedAt
+  savedBy         SavedOpportunity[]
+  viewedBy        ViewedOpportunity[]
+  notifications   Notification[]
+
+  @@index([category, isActive])
+  @@index([deadline, isActive])
+  @@index([skillsRequired], type: Gin)
+}
+
+model SavedOpportunity {
+  id            String      @id @default(cuid())
+  userId        String
+  opportunityId String
+  savedAt       DateTime    @default(now())
+  notes         String?
+  user        User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  opportunity Opportunity @relation(fields: [opportunityId], references: [id], onDelete: Cascade)
+  @@unique([userId, opportunityId])
+}
+
+model ViewedOpportunity {
+  id            String      @id @default(cuid())
+  userId        String
+  opportunityId String
+  viewedAt      DateTime    @default(now())
+  user        User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  opportunity Opportunity @relation(fields: [opportunityId], references: [id], onDelete: Cascade)
+  @@unique([userId, opportunityId])
+}
+
+// ─── Notification Models ───────────────────────────────────────
+
+model Notification {
+  id          String           @id @default(cuid())
+  userId      String
+  title       String
+  message     String
+  type        NotificationType
+  category    Category @default(OTHER)
+  isRead      Boolean          @default(false)
+  opportunityId String?
+  sentVia     String[]         @default([])
+  createdAt   DateTime         @default(now())
+  user        User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  opportunity Opportunity? @relation(fields: [opportunityId], references: [id], onDelete: SetNull)
+
+  @@index([userId, isRead])
+  @@index([userId, createdAt])
+}
+
+model NotificationPreference {
+  id       String @id @default(cuid())
+  userId   String @unique
+  channels String[] @default(["EMAIL"])
+  categories String[] @default(["INTERNSHIP", "CERTIFICATION", "HACKATHON", "COMPETITION"])
+  maxPerDay Int    @default(10)
+  quietHoursStart Int?
+  quietHoursEnd   Int?
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+// ─── Portfolio Models ──────────────────────────────────────────
+
+model Certification {
+  id          String    @id @default(cuid())
+  userId      String
+  name        String
+  provider    String
+  url         String?
+  completedAt DateTime?
+  expiresAt   DateTime?
+  skills      String[]  @default([])
+  verified    Boolean   @default(false)
+  createdAt   DateTime  @default(now())
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model Achievement {
+  id          String    @id @default(cuid())
+  userId      String
+  title       String
+  description String?
+  date        DateTime
+  category    String
+  url         String?
+  createdAt   DateTime  @default(now())
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model PortfolioItem {
+  id          String    @id @default(cuid())
+  userId      String
+  title       String
+  description String?
+  type        PortfolioType
+  url         String?
+  imageUrl    String?
+  skills      String[]  @default([])
+  featured    Boolean   @default(false)
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model Goal {
+  id          String   @id @default(cuid())
+  userId      String
+  title       String
+  description String?
+  category    String?
+  completed   Boolean  @default(false)
+  progress    Int      @default(0)
+  deadline    DateTime?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  user       User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  milestones Milestone[]
+
+  @@index([userId])
+}
+
+model Milestone {
+  id        String   @id @default(cuid())
+  goalId    String
+  title     String
+  completed Boolean  @default(false)
+  createdAt DateTime @default(now())
+  goal Goal @relation(fields: [goalId], references: [id], onDelete: Cascade)
+}
+
+// ─── Source & Scraping Models ──────────────────────────────────
+
+model DataSource {
+  id          String     @id @default(cuid())
+  name        String
+  url         String
+  type        SourceType
+  category    Category
+  isActive    Boolean    @default(true)
+  scrapeFreq  Int        @default(60)
+  lastScraped DateTime?
+  lastError   String?
+  config      Json?
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
+  scrapeLogs ScrapeLog[]
+}
+
+model ScrapeLog {
+  id           String   @id @default(cuid())
+  sourceId     String
+  status       ScrapeStatus
+  itemsFound   Int      @default(0)
+  newItems     Int      @default(0)
+  errorMessage String?
+  duration     Int      @default(0)
+  createdAt    DateTime @default(now())
+  source DataSource @relation(fields: [sourceId], references: [id], onDelete: Cascade)
+}
+
+// ─── Enums ─────────────────────────────────────────────────────
+
+enum Role {
+  STUDENT
+  ADMIN
+}
+
+enum Category {
+  INTERNSHIP
+  CERTIFICATION
+  HACKATHON
+  COMPETITION
+  RESEARCH
+  OPEN_SOURCE
+  SCHOLARSHIP
+  COURSE
+  WORKSHOP
+  OTHER
+}
+
+enum Difficulty {
+  BEGINNER
+  EASY
+  MEDIUM
+  HARD
+  EXPERT
+}
+
+enum NotificationType {
+  NEW_OPPORTUNITY
+  DEADLINE_REMINDER
+  APPLICATION_REMINDER
+  CERTIFICATION_EXPIRING
+  WEEKLY_DIGEST
+  SYSTEM
+}
+
+enum NotificationFreq {
+  INSTANT
+  HOURLY
+  DAILY
+  WEEKLY
+}
+
+enum PortfolioType {
+  PROJECT
+  INTERNSHIP
+  CERTIFICATION
+  ACHIEVEMENT
+  RESEARCH
+  OPEN_SOURCE
+}
+
+enum SourceType {
+  RSS
+  API
+  SCRAPER
+  MANUAL
+}
+
+enum ScrapeStatus {
+  SUCCESS
+  PARTIAL
+  FAILED
+}
